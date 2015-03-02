@@ -1,0 +1,13 @@
+version 0.1:
+
+* Added user-defined command for actions (watch standings, load problem/submission)
+* Tested work with 10k users in colors. Unsucsessfully. 1k -- ~OK
+* ICPC standings in usual format, command standings (e.g. contest with id 44)
+* Room standings
+* Some minor fixes
+
+version 0.2:
+
+* Parsing of contest
+* Running samples
+* Some minor refactoring
