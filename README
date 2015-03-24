@@ -15,6 +15,8 @@ http://i.imgur.com/NAmMBEj.png
 What I'm planning to do
 
 * Full coloring of standings
-* Parsing sapmles and automatic testing like (C|J)Helper does. In progress...
+* <s>Parsing sapmles</s>(Done.) and automatic testing like (C|J)Helper does. In progress...
 * Deleting unused code, local uncludes (C++)
 * ...
+
+It is clone of github project https://github.com/Igorjan94/codeforces.vim
