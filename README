@@ -2,7 +2,7 @@ This is a mirror of http://www.vim.org/scripts/script.php?script_id=5123
 
 Vim plugin for CodeForces
 
-What allows to do
+What allows to do:
 
 * Watch standings of contests (Unofficial http://i.imgur.com/yI5bhBs.png, Friends http://i.imgur.com/2o730zV.png, Official http://i.imgur.com/avSplri.png, Room http://i.imgur.com/nRH64jB.png)
 * Submit source code (thanks to CountZero http://codeforces.ru/blog/entry/14786)
@@ -11,12 +11,5 @@ What allows to do
 http://i.imgur.com/Q5M9fsd.png
 http://i.imgur.com/NAmMBEj.png
 * Download last submission of user to problem (qwerty787788's solution to F http://i.imgur.com/vqvZV7Y.png)
-
-What I'm planning to do
-
-* Full coloring of standings
-* <s>Parsing sapmles</s>(Done.) and automatic testing like (C|J)Helper does. In progress...
-* Deleting unused code, local uncludes (C++)
-* ...
 
 It is clone of github project https://github.com/Igorjan94/codeforces.vim

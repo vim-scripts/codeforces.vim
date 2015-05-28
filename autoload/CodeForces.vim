@@ -24,6 +24,11 @@ SAMPLE_INPUT   = vim.eval('g:CodeForcesInput')
 SAMPLE_OUTPUT  = vim.eval('g:CodeForcesOutput')
 cf_domain      = vim.eval('g:CodeForcesDomain')
 csrf_token     = vim.eval('g:CodeForcesToken')
+
+jsessionid     = vim.eval('g:CodeForcesJSessionId')
+weird          = vim.eval('g:CodeForces39ce7')
+user_agent     = vim.eval('g:CodeForcesUserAgent')
+
 x_user         = vim.eval('g:CodeForcesXUser')
 prefix         = vim.eval('s:CodeForcesPrefix')
 contestId      = vim.eval('g:CodeForcesContestId')
@@ -33,12 +38,27 @@ username       = vim.eval('g:CodeForcesUsername')
 countSt        = vim.eval('g:CodeForcesCount')
 updateInterval = vim.eval('g:CodeForcesUpdateInterval')
 countOfSubmits = vim.eval('g:CodeForcesCountOfSubmits')
+cookies        = {'X-User' : x_user, 'JSESSIONID' : jsessionid, '39ce7' : weird}
+headers        = {'User-Agent' : user_agent}
+csrf_token_p   = {'csrf_token' : csrf_token, '_tta' : '222'}
 http           = 'http://codeforces.' + cf_domain + '/'
 api            = http + 'api/'
 phase          = 0
+typeOfContest  = 'contest/'
+if int(contestId) > 100000:
+    typeOfContest = 'gym/'
+lang           = '&lang='
+locale         = '?locale='
+try:
+    lang      += vim.eval('g:CodeForcesLang')
+    locale    += vim.eval('g:CodeForcesLang')
+except:
+    lang      += 'en'
+    locale    += 'en'
+
 
 ext_id          =  {
-    'cpp':   '16',
+    'cpp':   '42',
     'cs':    '9',
     'c':     '10',
     'hs':    '12',
@@ -55,7 +75,8 @@ ext_id          =  {
     'php':   '6',
     'rb':    '8',
     'scala': '20',
-    'js':    '34'
+    'js':    '34',
+    'pi':    '44'
 }
 
 def entity2char(x):
@@ -77,7 +98,7 @@ class CodeForcesSubmissionParser(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == 'pre':
             for (x, y) in attrs:
-                if x == 'class' and y == 'prettyprint':
+                if x == 'class' and y == 'prettyprint program-source':
                     self.parsing = True
 
     def handle_endtag(self, tag):
@@ -253,7 +274,7 @@ class CodeForcesFriendsParser(HTMLParser):
 def parse_problem(folder, domain, contest, problem, needTests):
     url = http + 'contest/%s/problem/%s' % (contest, problem)
     parser = CodeForcesProblemParser(folder, needTests, problem)
-    parser.feed(requests.get(url).text.encode('utf-8'))
+    parser.feed(requests.get(url + locale).text.encode('utf-8'))
     return parser.problem[:-1].encode('utf-8')
 
 def color(rating):
@@ -272,9 +293,9 @@ def color(rating):
     return 'Red'
 
 def loadFriends():
-    r = requests.post(http + 'ratings/friends/true', params = {'csrf_token': csrf_token}, cookies = {'X-User': x_user}).text.encode('utf-8')
+    r = requests.post(http + 'ratings/friends/true', params = csrf_token_p, cookies = cookies, headers = headers).text.encode('utf-8')
     parser = CodeForcesFriendsParser()
-    parser.feed(r)
+    parser.feed(r + locale)
     friends = parser.friends.encode('utf-8')
     friends = re.sub(r'(\s*\n\s*)+', '\n', friends)
     friends = re.sub(r'^(\s*\n\s*)+', '', friends)
@@ -286,7 +307,7 @@ def loadFriends():
         counter += 1
 
 def getProblems(contestId):
-    return [(x['index'], x['name']) for x in requests.get(api + 'contest.standings?contestId=%s' % (contestId)).json()['result']['problems']]
+    return [(x['index'], x['name']) for x in requests.get(api + 'contest.standings?contestId=%s%s' % (contestId, lang)  ).json()['result']['problems']]
 EOF
 "}}}
 
@@ -296,7 +317,6 @@ echom 'Parsing contest'
 python << EOF
 
 def parse(folder, cf_domain, contestId, index, flag):
-    print('here')
     parsed = parse_problem(folder, cf_domain, contestId, index, True)
     open('/'.join((folder, index + '.problem')), 'w').write(parsed)
 
@@ -375,15 +395,19 @@ if vim.eval('g:CodeForcesContestId') == 0:
     print('CodeForcesContestId is not set. Add it in .vimrc or just call :CodeForcesStandings <CodeForcesContestId>')
 else:
     contestId = vim.eval('g:CodeForcesContestId')
-    params = {'handles' : '', 'room' : '', 'showUnofficial' : '', 'from' : vim.eval('s:CodeForcesFrom'), 'count' : countSt, 'contestId' : contestId, 'csrf_token': csrf_token}
-    cookies = {'X-User' : x_user}
+    params = {'handles' : '', 'room' : '', 'showUnofficial' : '', 'from' : vim.eval('s:CodeForcesFrom'), 'count' : countSt, 'contestId' : contestId}
     if vim.eval('s:CodeForcesRoom') != '0':
         try:
-            params['room'] = str(requests.get(api + 'contest.standings?contestId=' + contestId + '&handles=' + username + '&showUnofficial=true').json()['result']['rows'][0]['party']['room'])
+            params['room'] = str(requests.get(api + 'contest.standings?contestId=' + contestId + '&handles=' + username + '&showUnofficial=true' + lang).json()['result']['rows'][0]['party']['room'])
         except:
             print('No rooms or smthng else')
     if vim.eval('g:CodeForcesFriends') != '0':
-        params['handles'] = ';'.join(x[:-1] for x in open(prefix + '/codeforces.friends', 'r').readlines())
+        try:
+            f = open(prefix + '/codeforces.friends', 'r')
+        except:
+            loadFriends()
+            f = open(prefix + '/codeforces.friends', 'r')
+        params['handles'] = ';'.join(x[:-1] for x in f.readlines())
     if vim.eval('g:CodeForcesShowUnofficial') != '0':
         params['showUnofficial'] = 'true'
     url = api + 'contest.standings'
@@ -392,12 +416,15 @@ else:
             vim.command(vim.eval('g:CodeForcesCommandStandings') + ' ' + prefix + '/codeforces.standings')
             vim.command('call CodeForces#CodeForcesColor()')
         del vim.current.buffer[:]
-        x = requests.post(url, params = params, cookies = cookies).json()
+        x = requests.get(url + '?' + '&'.join(str(x) + '=' + str(params[x]) for x in params) + lang)
+        x = x.json()
         if x['status'] != 'OK':
             vim.current.buffer.append('FAIL, ' + x['comment'])
         else:
             x = x['result']
             st = x['contest']['phase']
+            if x['contest']['type'] == 'ICPC':
+                st = 'FINISHED'
             if st == 'SYSTEM_TEST':
                 phase = 1
             else:
@@ -408,7 +435,11 @@ else:
                 vim.command('let s:CodeForcesStatusChanged = 0')
             vim.command("let s:CodeForcesStatus = '" + st + "'")
             contestName = x['contest']['name']
-            problems = 'N|Party|Hacks|Score'
+            problems = 'N|Party|'
+            if x['contest']['type'] == 'ICPC':
+                problems += 'Penalty|Solved'
+            else:
+                problems += 'Hacks|Score'
             for problem in x['problems']:
                 price = ''
                 if 'points' in problem.keys():
@@ -425,8 +456,12 @@ else:
                         hacks += '/'
                     hacks += '-' + str(y['unsuccessfulHackCount'])
                 unof = ''
-                if y['party']['participantType'] != 'CONTESTANT':
+                if y['party']['participantType'] == 'OUT_OF_COMPETITION':
                     unof = '*'
+                if y['party']['participantType'] == 'VIRTUAL':
+                    unof = '#'
+                if x['contest']['type'] == 'ICPC':
+                    hacks = str(int(y['penalty']))
                 s = ' ' + str(y['rank']) + ' | ' + ', '.join(x['handle'] for x in y['party']['members']) + unof + ' | ' + hacks + '|' + str(int(y['points']))
                 for pr in y['problemResults']:
                     s += ' | '
@@ -479,7 +514,12 @@ endfunction
 
 function! CodeForces#CodeForcesSetRound(id) "{{{
     let g:CodeForcesContestId = a:id
-    py contestId = vim.eval('g:CodeForcesContestId')
+python << EOF
+contestId = vim.eval('g:CodeForcesContestId')
+typeOfContest  = 'contest/'
+if int(contestId) > 100000:
+    typeOfContest = 'gym/'
+EOF
 endfunction
 "}}}
 
@@ -502,6 +542,8 @@ function! CodeForces#CodeForcesColor() "{{{
 python << EOF
 users = open(prefix + '/codeforces.users', 'r')
 for user in users:
+    if not ' ' in user:
+        continue
     [handle, color] = user[:-1].split(' ', 1)
     s = "let x = matchadd('" + color + "', '" + handle + "')"
     vim.command(s)
@@ -530,8 +572,7 @@ if col >= 0 and tasks[col] != '|' and row > 2:
         submissionLang = ''
         while True:
             vim.command("echom 'searching submission'")
-            submissions = requests.get(api + 'contest.status?contestId=' + contestId + '&handle=' + handle +
-                '&from=' + str(i) + '&count=' + str(count)).json()
+            submissions = requests.get(api + 'contest.status?contestId=' + contestId + '&handle=' + handle + '&from=' + str(i) + '&count=' + str(count) + lang).json()
             if submissions['status'] == 'OK':
                 for submission in submissions['result']:
                     if submission['problem']['index'] == index:
@@ -561,11 +602,10 @@ if col >= 0 and tasks[col] != '|' and row > 2:
             del vim.current.buffer[:]
 
             parser = CodeForcesSubmissionParser()
-            parser.feed(requests.get(http + 'contest/' + contestId + '/submission/' + str(submissionId)).text.encode('utf-8'))
+            parser.feed(requests.get(http + typeOfContest + contestId + '/submission/' + str(submissionId) + locale).text.encode('utf-8').replace('\r', ''))
             vim.current.buffer.append(parser.submission.encode('utf-8').split('\n'))
 
             del vim.current.buffer[0]
-            vim.command('%s/\r//g')
             vim.command('w')
 EOF
 endfunction
@@ -581,7 +621,7 @@ def formatString(s):
 
 while True:
     try:
-        data = requests.get(api + 'user.status?handle=' + username + '&from=1&count=' + str(countOfSubmits)).json()['result']
+        data = requests.get(api + 'user.status?handle=' + username + '&from=1&count=' + str(countOfSubmits) + lang).json()['result']
     except:
         vim.command('sleep ' + str(updateInterval))
         continue
@@ -592,8 +632,9 @@ while True:
         except:
             print('IN QUEUE')
     sys.stdout.flush()
-    if data[0]['verdict'] != 'TESTING':
-        break
+    if 'verdict' in data[0].keys():
+        if data[0]['verdict'] != 'TESTING':
+            break
     vim.command('sleep ' + str(updateInterval))
 EOF
 endfunction
@@ -610,7 +651,7 @@ if not extension in ext_id.keys():
     print("I don't know extension ." + extension + ' :(')
 else:
     parts = {
-            'csrf_token':            csrf_token,
+            'csrf_token':            csrf_token, 
             'action':                'submitSolutionFormSubmitted',
             'submittedProblemIndex': filename,
             'source':                open(fullPath, 'rb'),
@@ -619,14 +660,12 @@ else:
             '_tta':                  '222'
     }
     print('you are submitting ' + str(contestId) + filename + '.' + extension)
-    typeOfContest = 'contest/'
-    if int(contestId) > 100000:
-        typeOfContest = 'gym/'
+    print('ok')
     r = requests.post(http + typeOfContest + contestId + '/problem/' + filename,
-        params  = {'csrf_token': csrf_token},
         files   = parts,
-        cookies = {'X-User': x_user})
-    print(r)
+        headers = headers,
+        cookies = cookies)
+        #    print(r.text)
     if r.status_code == requests.codes.ok:
         print('Solution is successfully sent. Current time is ' + time.strftime('%H:%M:%S'))
 EOF
@@ -648,20 +687,26 @@ endfunction
 "}}}
 
 function! CodeForces#CodeForcesLoadTask(index) "{{{
-call CodeForces#CodeForcesLoadTaskContestId(g:CodeForcesContestId, a:index)
+call CodeForces#CodeForcesLoadTaskContestId(g:CodeForcesContestId, a:index, 'False')
 endfunction
 "}}}
 
-function! CodeForces#CodeForcesLoadTaskContestId(contestId, index) "{{{
+function! CodeForces#CodeForcesLoadTaskWithTests(index) "{{{
+call CodeForces#CodeForcesLoadTaskContestId(g:CodeForcesContestId, a:index, 'True')
+endfunction
+"}}}
+
+function! CodeForces#CodeForcesLoadTaskContestId(contestId, index, tests) "{{{
 let directory = expand('%:p:h')
 python << EOF
 
 index = vim.eval('a:index').upper()
 contestId = vim.eval('a:contestId')
 directory = vim.eval('directory')
+needTests = vim.eval('a:tests')
 vim.command(vim.eval('g:CodeForcesCommandLoadTask') + ' ' + index + '.problem')
 del vim.current.buffer[:]
-vim.current.buffer.append(parse_problem(directory, cf_domain, contestId, index, False).split('\n'))
+vim.current.buffer.append(parse_problem(directory, cf_domain, contestId, index, needTests == 'True').split('\n'))
 del vim.current.buffer[0]
 EOF
 :%s/\n\n\n/\r\r/g
@@ -705,15 +750,15 @@ endfunction
 function! CodeForces#CodeForcesContestList() "{{{
 python << EOF
 
-response = requests.post(http + 'data/contests',
-                        params = {'csrf_token': csrf_token, 'action': 'getSolvedProblemCountsByContest'},
-                        cookies = {'X-User': x_user})
+response = requests.get(http + 'data/contests')
 if response.status_code == requests.codes.ok:
     solved_count = response.json()['solvedProblemCountsByContestId']
     total_count = response.json()['problemCountsByContestId']
+else:
+    print("fail loading contest list")
 
 url = api + 'contest.list?gym=false'
-response = requests.get(url).json()
+response = requests.get(url + lang).json()
 if vim.eval("expand('%:e')").lower() != 'contestlist':
     vim.command('tabnew ' + prefix + '/codeforces.contestList')
 del vim.current.buffer[:]
@@ -731,15 +776,12 @@ else:
             if contest['phase'] == 'FINISHED':
                 phase = 'Finished'
             else:
-                time = -contest['relativeTimeSeconds']
+                time = contest['relativeTimeSeconds']
+                if contest['phase'] == 'BEFORE':
+                    time = -time
                 phase = '{}h {}m'.format(time / 3600, (time % 3600) / 60)
             contest['name'] = (contest['name'].encode('utf-8'))
-            if contestId in solved_count:
-                solved_cnt = solved_count[contestId]
-                total_cnt = total_count[contestId]
-                text = '{}|{}|{}|{} / {}'.format(contest['name'], contestId, phase, solved_cnt, total_cnt)
-            else:
-                text = '{}|{}|{}|0'.format(contest['name'], contestId, phase)
+            text = '{}|{}|{}|0'.format(contest['name'], contestId, phase)
             vim.current.buffer.append(text.decode('utf-8'))
         cnt += 1
         if cnt >= contest_to:
@@ -750,6 +792,11 @@ else:
     # s = 'let x = matchadd(\"' + color + '\", \"' + handle + '\")'
     # vim.command(s)
 EOF
+"if contestId in solved_count:
+    "solved_cnt = solved_count[contestId]
+    "total_cnt = total_count[contestId]
+    "text = '{}|{}|{}|{} / {}'.format(contest['name'], contestId, phase, solved_cnt, total_cnt)
+"else:
 highlight Green ctermfg=green
 match Green /\([0-9]\+\) \/ \1/
 
@@ -771,7 +818,7 @@ try:
         vim.command('tabnew ../' + x + '/' + x + '.problem')
         vim.command('cd %:p:h')
         vim.command('vsplit ' + x + '.cpp')
-        vim.command('75')
+        vim.command('67')
     vim.command('CodeForcesStandings')
     vim.command('tabnext')
     vim.command('q')
